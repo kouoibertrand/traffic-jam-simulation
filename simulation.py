@@ -1,76 +1,67 @@
 import random
-import matplotlib
-matplotlib.use('Agg')  # backend non interactif
-import matplotlib.pyplot as plt
-import imageio
 
-# ----- Initialisation -----
-def initialize_road(length, n_cars, v_max):
-    """
-    Initialise la route.
-    -1 = vide
-    1..v_max = vitesse de la voiture
-    """
-    road = [-1] * length
-    positions = random.sample(range(length), n_cars)
-    for pos in positions:
-        road[pos] = random.randint(1, v_max)
-    return road
 
-# ----- Mise à jour -----
-def step(road, v_max, p_slow=0.2):
-    length = len(road)
-    new_road = [-1] * length
+class Car:
+    def __init__(self, position, velocity=0):
+        self.position = position
+        self.velocity = velocity
 
-    # parcourir la route de la fin vers le début pour éviter écrasements
-    for i in reversed(range(length)):
-        v = road[i]
-        if v != -1:
-            # distance jusqu'à la prochaine voiture
-            distance = 1
-            while distance <= v_max:
-                if road[(i + distance) % length] != -1:
-                    break
-                distance += 1
 
-            vitesse = min(v, distance-1)
+class TrafficSimulation:
+    def __init__(
+        self,
+        road_length=100,
+        num_cars=20,
+        vmax=5,
+        slowdown_prob=0.3,
+        seed=42,
+    ):
+        random.seed(seed)
 
-            # freinage aléatoire
-            if vitesse > 0 and random.random() < p_slow:
-                vitesse -= 1
+        self.road_length = road_length
+        self.vmax = vmax
+        self.slowdown_prob = slowdown_prob
+        self.time = 0
 
-            new_pos = (i + vitesse) % length
-            new_road[new_pos] = vitesse
+        positions = random.sample(range(road_length), num_cars)
+        positions.sort()
 
-    return new_road
+        self.cars = [Car(pos) for pos in positions]
 
-# ----- Visualisation -----
-def plot_road(road, v_max, t):
-    display = [0 if x == -1 else x for x in road]
-    plt.figure(figsize=(10,1))
-    plt.imshow([display], cmap='viridis', vmin=0, vmax=v_max, aspect='auto')
-    plt.axis('off')
-    plt.savefig(f"frame_{t:03d}.png")
-    plt.close()
+    def distance_to_next_car(self, index):
+        car = self.cars[index]
+        next_car = self.cars[(index + 1) % len(self.cars)]
 
-# ----- Simulation -----
-if __name__ == "__main__":
-    length = 20
-    n_cars = 5
-    v_max = 3
-    p_slow = 0.2
-    steps = 20
+        if next_car.position > car.position:
+            return next_car.position - car.position - 1
+        else:
+            return self.road_length - car.position + next_car.position - 1
 
-    road = initialize_road(length, n_cars, v_max)
+    def step(self):
+        # 1. Acceleration
+        for car in self.cars:
+            car.velocity = min(car.velocity + 1, self.vmax)
 
-    # Simuler et sauvegarder les frames
-    for t in range(steps):
-        road = step(road, v_max, p_slow)
-        plot_road(road, v_max, t)
+        # 2. Collision avoidance
+        for i, car in enumerate(self.cars):
+            gap = self.distance_to_next_car(i)
+            car.velocity = min(car.velocity, gap)
 
-    # Créer le GIF
-    frames = [f"frame_{t:03d}.png" for t in range(steps)]
-    images = [imageio.imread(f) for f in frames]
-    imageio.mimsave("traffic.gif", images, duration=0.1)
+        # 3. Random slowdown
+        for car in self.cars:
+            if car.velocity > 0 and random.random() < self.slowdown_prob:
+                car.velocity -= 1
 
-    print("Simulation terminée ! GIF généré : traffic.gif")
+        # 4. Move cars
+        for car in self.cars:
+            car.position = (car.position + car.velocity) % self.road_length
+
+        self.time += 1
+
+    def average_speed(self):
+        return sum(car.velocity for car in self.cars) / len(self.cars)
+
+    def positions(self):
+        return [car.position for car in self.cars]
+        
+    

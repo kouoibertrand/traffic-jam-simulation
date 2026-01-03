@@ -1,17 +1,25 @@
-import matplotlib
-matplotlib.use('Agg')  # backend non interactif
 import matplotlib.pyplot as plt
+from simulation import TrafficSimulation
 
-def plot_road(road, v_max, t):
-    """
-    Affiche la route avec des couleurs selon la vitesse des voitures.
-    -1 = vide, 0..v_max = vitesse
-    """
-    # convertir -1 en 0 pour affichage
-    display = [0 if cell == -1 else cell for cell in road]
 
-    plt.figure(figsize=(10, 1))
-    plt.imshow([display], cmap='viridis', vmin=0, vmax=v_max, aspect='auto')
-    plt.axis('off')
-    plt.savefig(f"frame_{t:03d}.png")
+def animate_simulation(steps=100):
+    sim = TrafficSimulation()
+
+    avg_speeds = []
+
+    for _ in range(steps):
+        sim.step()
+        avg_speeds.append(sim.average_speed())
+
+    plt.figure()
+    plt.plot(avg_speeds)
+    plt.xlabel("Time step")
+    plt.ylabel("Average speed")
+    plt.title("Traffic flow evolution")
+    plt.tight_layout()
+    plt.savefig("visualization.png", dpi=300)
     plt.close()
+
+
+if __name__ == "__main__":
+    animate_simulation(300)
